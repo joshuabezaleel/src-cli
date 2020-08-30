@@ -37,9 +37,6 @@ const CampaignSpecJSON = `{
                 "type": "string",
                 "description": "A Sourcegraph search query that matches a set of repositories (and branches). If the query matches files, symbols, or some other object inside a repository, the object's repository is included.",
                 "examples": ["file:README.md"]
-              },
-              "changesetTemplate": {
-                "$ref": "#/definitions/changesetTemplate"
               }
             }
           },
@@ -118,19 +115,48 @@ const CampaignSpecJSON = `{
       }
     },
     "changesetTemplate": {
-      "$ref": "#/definitions/changesetTemplate"
-    }
-  },
-  "definitions": {
-    "changesetTemplate": {
       "type": "object",
       "description": "A template describing how to create (and update) changesets with the file changes produced by the command steps.",
       "additionalProperties": false,
       "required": ["title", "branch", "commit", "published"],
       "properties": {
         "title": {
-          "type": "string",
-          "description": "The title of the changeset."
+          "description": "The title of the changeset.",
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "The title to use for the entire campaign."
+            },
+            {
+              "type": "object",
+              "required": ["default", "only"],
+              "additionalProperties": false,
+              "properties": {
+                "default": {
+                  "type": "string",
+                  "description": "The title to use for all changesets that do not match any of the rules in the only array."
+                },
+                "only": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["match", "value"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "match": {
+                        "type": "string",
+                        "description": "The repository name to match. Glob wildcards are supported."
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "The title to use for changesets that match this rule."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
         },
         "body": {
           "type": "string",
@@ -154,9 +180,45 @@ const CampaignSpecJSON = `{
           }
         },
         "published": {
-          "type": "boolean",
           "description": "Whether to publish the changeset. An unpublished changeset can be previewed on Sourcegraph by any person who can view the campaign, but its commit, branch, and pull request aren't created on the code host. A published changeset results in a commit, branch, and pull request being created on the code host.",
-          "$comment": "TODO(sqs): Come up with a way to specify that only a subset of changesets should be published. For example, making ` + "`" + `published` + "`" + ` an array with some include/exclude syntax items."
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "A single flag to control the publishing state for the entire campaign."
+            },
+            {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "description": "Only repositories that match patterns in this array will be published.",
+                  "additionalProperties": false,
+                  "required": ["only"],
+                  "properties": {
+                    "only": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "description": "Only repositories that do NOT match patterns in this array will be published.",
+                  "additionalProperties": false,
+                  "required": ["except"],
+                  "properties": {
+                    "except": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
         }
       }
     }
